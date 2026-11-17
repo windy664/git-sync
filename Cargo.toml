@@ -1,0 +1,35 @@
+[package]
+name = "vault-sync"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Local half of a two-way Obsidian vault sync: commit, push a pending branch, and pull back what the server merged."
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/windy664/vault-sync"
+keywords = ["obsidian", "git", "sync", "notes"]
+categories = ["command-line-utilities"]
+
+[lib]
+name = "vault_sync"
+path = "src/lib.rs"
+
+[[bin]]
+name = "vault-sync"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+clap = { version = "4", features = ["derive"] }
+dirs = "6"
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+toml = "0.9"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = 3
+strip = true
