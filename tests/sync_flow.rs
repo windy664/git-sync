@@ -81,7 +81,7 @@ impl Fixture {
 
     fn cfg(&self) -> Config {
         let mut cfg = Config {
-            vault_path: self.vault.clone(),
+            repo_path: self.vault.clone(),
             remote: "origin".into(),
             master_branch: "master".into(),
             pending_branch: PENDING.into(),

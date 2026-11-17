@@ -71,8 +71,9 @@ impl Default for Schedule {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
-    /// vault 仓库所在目录。
-    pub vault_path: PathBuf,
+    /// 要同步的仓库目录。
+    #[serde(alias = "vault_path")]
+    pub repo_path: PathBuf,
     /// 主远端名（git remote 的名字，通常是 origin）。
     pub remote: String,
     /// master 分支名：服务器是它的唯一写者。
@@ -91,7 +92,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            vault_path: default_vault_path(),
+            repo_path: default_repo_path(),
             remote: "origin".to_owned(),
             master_branch: "master".to_owned(),
             pending_branch: "sync/pending".to_owned(),
@@ -104,7 +105,7 @@ impl Default for Config {
     }
 }
 
-fn default_vault_path() -> PathBuf {
+fn default_repo_path() -> PathBuf {
     dirs::home_dir()
         .map(|h| h.join("Documents").join("Obsidian Vault"))
         .unwrap_or_else(|| PathBuf::from("."))
@@ -164,7 +165,7 @@ impl Config {
             .with_context(|| format!("读不到配置文件 {}", path.display()))?;
         let mut cfg: Config = toml::from_str(&text)
             .with_context(|| format!("配置文件 {} 解析失败", path.display()))?;
-        cfg.vault_path = expand_tilde(&cfg.vault_path);
+        cfg.repo_path = expand_tilde(&cfg.repo_path);
         cfg.state_dir = expand_tilde(&cfg.state_dir);
         Ok(cfg)
     }

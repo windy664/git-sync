@@ -84,14 +84,14 @@ pub fn sync_once(cfg: &Config, dry_run: bool) -> Result<Outcome> {
 }
 
 fn sync_inner(cfg: &Config, dry_run: bool) -> Result<Outcome> {
-    let git = Git::new(&cfg.vault_path);
+    let git = Git::new(&cfg.repo_path);
 
     // ---------- 前置检查 ----------
-    if !cfg.vault_path.is_dir() {
-        bail!("vault 目录不存在：{}", cfg.vault_path.display());
+    if !cfg.repo_path.is_dir() {
+        bail!("vault 目录不存在：{}", cfg.repo_path.display());
     }
     if !git.is_repo() {
-        bail!("{} 不是 git 仓库", cfg.vault_path.display());
+        bail!("{} 不是 git 仓库", cfg.repo_path.display());
     }
     if let Some(op) = git.in_progress_op() {
         bail!("仓库停在 {op} 中（有人正在手工解决冲突），本轮拒绝同步");

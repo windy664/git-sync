@@ -34,9 +34,9 @@ struct Cli {
 enum Command {
     /// 生成配置文件
     Init {
-        /// vault 目录（默认自动找带 .obsidian 的目录）
-        #[arg(long)]
-        vault: Option<PathBuf>,
+        /// 要同步的仓库目录（默认自动找带 .obsidian 的目录）
+        #[arg(long, alias = "vault")]
+        repo: Option<PathBuf>,
         /// 远端名
         #[arg(long, default_value = "origin")]
         remote: String,
@@ -118,7 +118,7 @@ fn real_main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Init {
-            vault,
+            repo,
             remote,
             master,
             pending,
@@ -127,7 +127,7 @@ fn real_main() -> Result<()> {
             force,
         } => cmd_init(
             cli.config.clone(),
-            vault,
+            repo,
             remote,
             master,
             pending,
@@ -183,7 +183,7 @@ fn load_config_with_path(explicit: Option<&Path>) -> Result<(Config, Option<Path
 #[allow(clippy::too_many_arguments)]
 fn cmd_init(
     config_path: Option<PathBuf>,
-    vault: Option<PathBuf>,
+    repo: Option<PathBuf>,
     remote: String,
     master: String,
     pending: String,
@@ -201,13 +201,13 @@ fn cmd_init(
         bail!("配置已存在：{}（要覆盖加 --force）", target.display());
     }
 
-    let vault_path = match vault {
+    let repo_path = match repo {
         Some(v) => config::expand_tilde(&v),
-        None => detect_vault()?,
+        None => detect_repo()?,
     };
 
     let mut cfg = Config {
-        vault_path: vault_path.clone(),
+        repo_path: repo_path.clone(),
         remote,
         master_branch: master,
         pending_branch: pending,
@@ -227,7 +227,7 @@ fn cmd_init(
 
     cfg.save(&target)?;
     println!("已写入配置：{}", target.display());
-    println!("  vault：{}", cfg.vault_path.display());
+    println!("  仓库：{}", cfg.repo_path.display());
     println!("  待合并分支：{}", cfg.pending_branch);
     println!("  远端：{} / master={}", cfg.remote, cfg.master_branch);
     if cfg.fallback.enabled {
@@ -241,8 +241,8 @@ fn cmd_init(
     Ok(())
 }
 
-/// 猜 vault 目录：家目录下的常见位置里找带 `.obsidian` 的。
-fn detect_vault() -> Result<PathBuf> {
+/// 猜仓库目录：家目录下的常见位置里找带 `.obsidian` 的。
+fn detect_repo() -> Result<PathBuf> {
     let home = dirs::home_dir().context("拿不到 home 目录")?;
     let mut candidates: Vec<PathBuf> = Vec::new();
     for parent in ["Documents", "Desktop", "OneDrive", "笔记", "Notes"] {
@@ -272,7 +272,7 @@ fn cmd_run(cfg: &Config, dry_run: bool) -> Result<()> {
 fn cmd_status(cfg: &Config, config_path: Option<&Path>) -> Result<()> {
     let state = State::new(&cfg.state_dir);
     println!("配置文件：{}", config_path_display(config_path));
-    println!("vault：{}", cfg.vault_path.display());
+    println!("仓库：{}", cfg.repo_path.display());
     println!("待合并分支：{}", cfg.pending_branch);
     println!("远端：{} / master={}", cfg.remote, cfg.master_branch);
     println!();
@@ -283,7 +283,7 @@ fn cmd_status(cfg: &Config, config_path: Option<&Path>) -> Result<()> {
     }
     println!();
 
-    let git = git::Git::new(&cfg.vault_path);
+    let git = git::Git::new(&cfg.repo_path);
     if git.is_repo() {
         match git.current_branch() {
             Ok(Some(branch)) => println!("当前分支：{branch}"),
@@ -313,7 +313,7 @@ fn cmd_status(cfg: &Config, config_path: Option<&Path>) -> Result<()> {
             }
         }
     } else {
-        println!("（{} 还不是 git 仓库）", cfg.vault_path.display());
+        println!("（{} 还不是 git 仓库）", cfg.repo_path.display());
     }
     println!();
 
