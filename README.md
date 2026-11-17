@@ -36,11 +36,10 @@ git-sync 的做法是借用 **PR 模型**（同构于 GitHub PR）：
 ## 安装
 
 ```bash
-cargo install --path .          # 从源码装
-# 或直接下载发行版二进制（见 Releases）
+cargo install --git https://github.com/windy664/git-sync
 ```
 
-要求：`git` 在 PATH 上，其余无依赖。
+要求：`git` 在 PATH 上，其余无依赖。（这个小项目不打版本标签，按 `main` 装即可。）
 
 ## 快速开始
 
