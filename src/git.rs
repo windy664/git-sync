@@ -156,7 +156,30 @@ impl Git {
         Ok(())
     }
 
+    /// 提交前确认 git 身份配好了。
+    ///
+    /// 没配的话 `git commit` 会抛一段英文的 "Please tell me who you are"，
+    /// 在 cron 里尤其难查——这里提前拦下来并说清楚怎么修。
+    pub fn ensure_identity(&self) -> Result<()> {
+        let name = self.try_run(&["config", "user.name"]).ok().filter(|o| o.ok);
+        let email = self
+            .try_run(&["config", "user.email"])
+            .ok()
+            .filter(|o| o.ok);
+        let missing = match (&name, &email) {
+            (Some(n), Some(e)) => n.trimmed().is_empty() || e.trimmed().is_empty(),
+            _ => true,
+        };
+        if missing {
+            bail!(
+                "git 没配提交身份（user.name / user.email）。先执行：\n  git config --global user.name \"你的名字\"\n  git config --global user.email \"你的邮箱\""
+            );
+        }
+        Ok(())
+    }
+
     pub fn commit(&self, message: &str) -> Result<()> {
+        self.ensure_identity()?;
         self.run(&["commit", "-q", "-m", message])?;
         Ok(())
     }

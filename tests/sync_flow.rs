@@ -59,6 +59,11 @@ impl Fixture {
             &["clone", server.to_str().unwrap(), vault.to_str().unwrap()],
         );
 
+        // 仓库内配好身份：工具的提交走仓库/全局配置，不能依赖跑测试的机器
+        // 恰好配了 user.name（CI runner 就没有）。
+        git(&vault, &["config", "user.name", "test"]);
+        git(&vault, &["config", "user.email", "test@example.com"]);
+
         std::fs::write(vault.join("hello.md"), "# hello\n").unwrap();
         git(&vault, &["add", "-A"]);
         git(&vault, &["commit", "-m", "init"]);
@@ -476,5 +481,23 @@ fn edits_appearing_mid_round_are_not_overwritten() {
     assert!(
         matches!(outcome, Outcome::Skipped(_)),
         "工作区中途变脏时应该跳过对齐，实际 {outcome:?}"
+    );
+}
+
+#[test]
+fn missing_git_identity_gives_a_helpful_error() {
+    let fx = Fixture::new();
+    // 把仓库里的身份清空（本地配置优先级高于全局，所以任何机器上都是空的）
+    fx.git(&["config", "user.name", ""]);
+    fx.git(&["config", "user.email", ""]);
+    fx.write("note.md", "本地编辑\n");
+
+    let result = sync_once(&fx.cfg(), false);
+
+    assert!(result.is_err(), "没配身份时提交应该失败并说清楚怎么修");
+    let err = format!("{:#}", result.unwrap_err());
+    assert!(
+        err.contains("user.name") && err.contains("git config"),
+        "错误信息应告诉用户怎么配身份：{err}"
     );
 }
