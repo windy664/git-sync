@@ -1,12 +1,12 @@
-# vault-sync
+# git-sync
 
-**Obsidian vault 双向同步的本地腿**：把本地编辑安全地交给服务器合并，再把服务器合完的结果取回来。
+**PR 模型的 git 双向同步（本地腿）**：把本地编辑安全地交给服务器合并，再把服务器合完的结果取回来。
 
-它解决的是一个很具体的问题：**同一份 vault 有两个写者（笔记本和服务器），而两边都会改同一批文件。**
+它解决的是一个很具体的问题：**同一份仓库有两个写者（笔记本和服务器），而两边都会改同一批文件。**
 
-直接共用一个分支必然打架：本地推 master 被拒，rebase 会把冲突标记插进笔记正文——而本地没有 AI 合并能力（密钥只在服务器上），冲突一旦落地就很难收场。
+直接共用一个分支必然打架：本地推 master 被拒，rebase 会把冲突标记插进文件正文——而本地通常没有解冲突的能力（密钥、模型、AI 合并器都在服务器上），冲突一旦落地就很难收场。
 
-vault-sync 的做法是借用 **PR 模型**（同构于 GitHub PR）：
+git-sync 的做法是借用 **PR 模型**（同构于 GitHub PR）：
 
 ```text
    本地编辑 ──commit──> 待合并分支 ──push──> 服务器
@@ -15,8 +15,12 @@ vault-sync 的做法是借用 **PR 模型**（同构于 GitHub PR）：
 ```
 
 关键点：**本地永远不做 merge / rebase / abort。** 本地只负责「把编辑交出去」，
-冲突留给服务器（那边可以接 AI 语义合并）。所以本地笔记里永远不会出现冲突标记，
+冲突留给服务器（那边可以接 AI 语义合并）。所以本地文件里永远不会出现冲突标记，
 同步也不会因为撞车而停摆。
+
+最常见的用法是拿它同步 [Obsidian](https://obsidian.md/) 笔记库——笔记在手机上改、
+在服务器上被 agent 整理，两边都是写者。本仓库的作者就是这么用的：
+笔记本每两分钟推一次，宿舍服务器上的 AI 把待合并分支合进 master，冲突由 AI 解。
 
 ## 为什么是 Rust
 
@@ -27,7 +31,7 @@ vault-sync 的做法是借用 **PR 模型**（同构于 GitHub PR）：
   仓库是否停在未完成的 merge 里，条件不满足就跳过这一轮而不是覆盖。
 - **配置化**：路径、远端、分支名、降级通道全在一份 TOML 里，不再硬编码。
 - **跨平台**：bash + cron 只在 Unix 上能用；这个工具 Linux/macOS/Windows 都能跑
-  （Windows 用 `vault-sync daemon` 或任务计划程序）。
+  （Windows 用 `git-sync daemon` 或任务计划程序）。
 
 ## 安装
 
@@ -42,37 +46,37 @@ cargo install --path .          # 从源码装
 
 ```bash
 # 1. 生成配置（vault 目录会自动找带 .obsidian 的那个）
-vault-sync init --vault ~/Documents/Obsidian\ Vault --pending sync/pending
+git-sync init --vault ~/Documents/Obsidian\ Vault --pending sync/pending
 
 # 2. 看一轮会发生什么（不动任何东西）
-vault-sync run --dry-run
+git-sync run --dry-run
 
 # 3. 真跑一轮
-vault-sync run
+git-sync run
 
 # 4. 装定时调度（Linux: systemd user timer 或 cron；macOS: launchd）
-vault-sync schedule install
+git-sync schedule install
 
 # 5. 看状态
-vault-sync status
+git-sync status
 ```
 
 ## 配置
 
-默认位置 `~/.config/vault-sync/config.toml`（也可以用 `--config` 或环境变量
-`VAULT_SYNC_CONFIG` 指定）：
+默认位置 `~/.config/git-sync/config.toml`（也可以用 `--config` 或环境变量
+`GIT_SYNC_CONFIG` 指定）：
 
 ```toml
-vault_path = "/home/you/Documents/Obsidian Vault"
+vault_path = "/home/you/Documents/Obsidian Vault"   # 要同步的仓库
 remote = "origin"
 master_branch = "master"          # 服务器是 master 的唯一写者
 pending_branch = "sync/pending"   # 本地编辑推到这里，等服务器合
 commit_message = "[local] local edits"
 
-state_dir = "~/.local/state/vault-sync"
+state_dir = "~/.local/state/git-sync"
 
 [debounce]
-# Obsidian 每次击键都会弄脏文件：不设防抖的话，一昼夜能攒出上百个碎片提交
+# 编辑器每次击键都会弄脏文件：不设防抖的话，一昼夜能攒出上百个碎片提交
 min_commit_interval_secs = 600
 
 [fallback]
@@ -91,7 +95,7 @@ interval_secs = 120
 
 ```text
 1. 前置检查
-   - vault 目录在吗？是 git 仓库吗？
+   - 仓库目录在吗？是 git 仓库吗？
    - 仓库停在未完成的 merge/rebase 里吗？→ 拒绝（别动用户的冲突现场）
    - 当前在 master 上吗？→ 拒绝（master 由服务器唯一写者维护）
    - 不在待合并分支上？→ 切过去
@@ -139,8 +143,8 @@ interval_secs = 120
 #!/usr/bin/env bash
 # 服务器：定期把待合并分支 merge 进 master
 set -euo pipefail
-REPO=/path/to/vault.git
-PENDING=ru41/local
+REPO=/path/to/repo.git
+PENDING=sync/pending
 cd "$REPO"
 
 # 有待合并分支才动
@@ -167,12 +171,12 @@ fi
 
 | 命令 | 作用 |
 |---|---|
-| `vault-sync init` | 生成配置文件 |
-| `vault-sync run [--dry-run]` | 跑一轮同步 |
-| `vault-sync status` | 看当前状态：上次同步结果、分支、工作区、与 master 的关系、调度器 |
-| `vault-sync daemon [--interval N]` | 常驻循环跑（自己管调度器时用） |
-| `vault-sync schedule install\|uninstall\|status` | 管理定时调度 |
-| `vault-sync config-path` | 打印当前用的配置文件路径 |
+| `git-sync init` | 生成配置文件 |
+| `git-sync run [--dry-run]` | 跑一轮同步 |
+| `git-sync status` | 看当前状态：上次同步结果、分支、工作区、与 master 的关系、调度器 |
+| `git-sync daemon [--interval N]` | 常驻循环跑（自己管调度器时用） |
+| `git-sync schedule install\|uninstall\|status` | 管理定时调度 |
+| `git-sync config-path` | 打印当前用的配置文件路径 |
 
 ## 开发
 
@@ -182,14 +186,14 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
-测试是真跑 git：每个用例都建一个裸仓库当「服务器」、clone 出一个 vault、
+测试是真跑 git：每个用例都建一个裸仓库当「服务器」、clone 出一个工作仓库、
 然后断言分支上有什么、工作区干不干净、文件还在不在。
 
 ## 状态与日志
 
-- `~/.local/state/vault-sync/status` —— 最后一句话（给人和脚本看）
-- `~/.local/state/vault-sync/log` —— 滚动日志（超过 1MB 轮转）
-- `~/.local/state/vault-sync/scheduler.log` —— 调度器的 stdout/stderr
+- `~/.local/state/git-sync/status` —— 最后一句话（给人和脚本看）
+- `~/.local/state/git-sync/log` —— 滚动日志（超过 1MB 轮转）
+- `~/.local/state/git-sync/scheduler.log` —— 调度器的 stdout/stderr
 
 ## License
 

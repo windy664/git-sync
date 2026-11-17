@@ -5,9 +5,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use git_sync::config::Config;
+use git_sync::sync::{Outcome, sync_once};
 use tempfile::TempDir;
-use vault_sync::config::Config;
-use vault_sync::sync::{Outcome, sync_once};
 
 const PENDING: &str = "sync/pending";
 
@@ -328,7 +328,7 @@ fn fallback_remote_is_used_when_primary_fails() {
     );
 
     let mut cfg = fx.cfg();
-    cfg.fallback = vault_sync::config::Fallback {
+    cfg.fallback = git_sync::config::Fallback {
         remote: fallback.to_string_lossy().into_owned(),
         refspec: None,
         enabled: true,

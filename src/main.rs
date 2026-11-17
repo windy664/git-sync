@@ -1,4 +1,4 @@
-//! vault-sync：Obsidian vault 双向同步的本地腿。
+//! git-sync：PR 模型的 git 双向同步（本地腿）。
 //!
 //! 本地只做三件事：把编辑提交成待合并分支、推给服务器、取回服务器合完的 master。
 //! 本地永远不做 merge / rebase —— 冲突交给服务器解。
@@ -8,21 +8,21 @@ use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use vault_sync::config::{self, Config};
-use vault_sync::git;
-use vault_sync::schedule;
-use vault_sync::state::State;
-use vault_sync::sync::{self, Outcome};
+use git_sync::config::{self, Config};
+use git_sync::git;
+use git_sync::schedule;
+use git_sync::state::State;
+use git_sync::sync::{self, Outcome};
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "vault-sync",
+    name = "git-sync",
     version,
-    about = "Obsidian vault 双向同步的本地腿：提交 → 推待合并分支 → 取回服务器合并结果",
+    about = "PR 模型的 git 双向同步：提交 → 推待合并分支 → 取回服务器合并结果",
     long_about = None
 )]
 struct Cli {
-    /// 配置文件路径（默认查 VAULT_SYNC_CONFIG → ~/.config/vault-sync/config.toml → ./vault-sync.toml）
+    /// 配置文件路径（默认查 GIT_SYNC_CONFIG → ~/.config/git-sync/config.toml → ./git-sync.toml）
     #[arg(long, global = true, value_name = "PATH")]
     config: Option<PathBuf>,
 
@@ -101,7 +101,7 @@ fn main() {
     }
 }
 
-/// 恢复 SIGPIPE 的默认行为：`vault-sync status | head` 应该像 `git log | head`
+/// 恢复 SIGPIPE 的默认行为：`git-sync status | head` 应该像 `git log | head`
 /// 那样安静退出，而不是 panic「failed printing to stdout」。
 #[cfg(unix)]
 fn reset_sigpipe() {
@@ -154,13 +154,13 @@ fn config_path_display(explicit: Option<&Path>) -> String {
     if let Some(path) = explicit {
         return path.display().to_string();
     }
-    if let Ok(env) = std::env::var("VAULT_SYNC_CONFIG")
+    if let Ok(env) = std::env::var("GIT_SYNC_CONFIG")
         && !env.is_empty()
     {
         return env;
     }
     if let Some(dir) = dirs::config_dir() {
-        let path = dir.join("vault-sync").join("config.toml");
+        let path = dir.join("git-sync").join("config.toml");
         if path.is_file() {
             return path.display().to_string();
         }
@@ -194,7 +194,7 @@ fn cmd_init(
     let target = config_path.unwrap_or_else(|| {
         dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("vault-sync")
+            .join("git-sync")
             .join("config.toml")
     });
     if target.exists() && !force {
@@ -235,9 +235,9 @@ fn cmd_init(
     }
     println!();
     println!("下一步：");
-    println!("  vault-sync run --dry-run    # 看一轮会发生什么");
-    println!("  vault-sync run              # 真跑一轮");
-    println!("  vault-sync schedule install # 装定时调度");
+    println!("  git-sync run --dry-run    # 看一轮会发生什么");
+    println!("  git-sync run              # 真跑一轮");
+    println!("  git-sync schedule install # 装定时调度");
     Ok(())
 }
 
@@ -337,7 +337,7 @@ fn count_commits(git: &git::Git, from: &str, to: &str) -> usize {
 fn cmd_daemon(cfg: &Config, interval: u64) -> Result<()> {
     let interval = interval.max(10);
     eprintln!(
-        "vault-sync daemon：每 {interval}s 跑一轮（Ctrl-C 退出）——状态见 {}",
+        "git-sync daemon：每 {interval}s 跑一轮（Ctrl-C 退出）——状态见 {}",
         State::new(&cfg.state_dir).status_path().display()
     );
     loop {

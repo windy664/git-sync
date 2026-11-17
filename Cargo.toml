@@ -1,21 +1,21 @@
 [package]
-name = "vault-sync"
+name = "git-sync"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "Local half of a two-way Obsidian vault sync: commit, push a pending branch, and pull back what the server merged."
+description = "PR-model two-way git sync: commit, push a pending branch, pull back what the server merged."
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/windy664/vault-sync"
-keywords = ["obsidian", "git", "sync", "notes"]
+repository = "https://github.com/windy664/git-sync"
+keywords = ["git", "sync", "obsidian", "notes", "merge"]
 categories = ["command-line-utilities"]
 
 [lib]
-name = "vault_sync"
+name = "git_sync"
 path = "src/lib.rs"
 
 [[bin]]
-name = "vault-sync"
+name = "git-sync"
 path = "src/main.rs"
 
 [dependencies]

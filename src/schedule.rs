@@ -1,8 +1,8 @@
-//! 定时调度：把 `vault-sync run` 挂到系统自带的调度器上。
+//! 定时调度：把 `git-sync run` 挂到系统自带的调度器上。
 //!
 //! - Linux：`systemd --user` 定时器（首选，机器睡醒后会补跑），回落 cron
 //! - macOS：launchd agent
-//! - Windows：只给说明——用任务计划程序跑 `vault-sync daemon`
+//! - Windows：只给说明——用任务计划程序跑 `git-sync daemon`
 
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
@@ -10,9 +10,9 @@ use std::process::Command;
 
 use crate::config::{Config, ScheduleBackend};
 
-const CRON_MARK: &str = "vault-sync";
-const SYSTEMD_UNIT: &str = "vault-sync";
-const LAUNCHD_LABEL: &str = "io.github.windy664.vault-sync";
+const CRON_MARK: &str = "git-sync";
+const SYSTEMD_UNIT: &str = "git-sync";
+const LAUNCHD_LABEL: &str = "io.github.windy664.git-sync";
 
 /// 实际使用的调度器。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,18 +66,18 @@ fn binary_path() -> Result<PathBuf> {
 }
 
 fn config_path_or_die() -> Result<PathBuf> {
-    if let Ok(env) = std::env::var("VAULT_SYNC_CONFIG")
+    if let Ok(env) = std::env::var("GIT_SYNC_CONFIG")
         && !env.is_empty()
     {
         return Ok(PathBuf::from(env));
     }
     if let Some(dir) = dirs::config_dir() {
-        let path = dir.join("vault-sync").join("config.toml");
+        let path = dir.join("git-sync").join("config.toml");
         if path.is_file() {
             return Ok(path);
         }
     }
-    bail!("还没配置文件——先跑 `vault-sync init`");
+    bail!("还没配置文件——先跑 `git-sync init`");
 }
 
 fn log_path(cfg: &Config) -> PathBuf {
@@ -154,7 +154,7 @@ fn cron_uninstall() -> Result<String> {
         .filter(|l| !l.contains(CRON_MARK))
         .collect();
     write_crontab(&lines)?;
-    Ok("已从 crontab 移除 vault-sync 条目".to_owned())
+    Ok("已从 crontab 移除 git-sync 条目".to_owned())
 }
 
 fn cron_status(cfg: &Config) -> Result<String> {
@@ -194,12 +194,12 @@ fn systemd_install(cfg: &Config) -> Result<String> {
     let cfg_path = config_path_or_die()?;
     let dir = systemd_dir()?;
     let service = format!(
-        "[Unit]\nDescription=vault-sync - Obsidian vault 本地同步腿\n\n[Service]\nType=oneshot\nExecStart={} run --config {}\n",
+        "[Unit]\nDescription=git-sync - 本地同步腿\n\n[Service]\nType=oneshot\nExecStart={} run --config {}\n",
         bin.display(),
         cfg_path.display()
     );
     let timer = format!(
-        "[Unit]\nDescription=定时跑 vault-sync\n\n[Timer]\nOnBootSec=2min\nOnUnitActiveSec={}s\nPersistent=true\n\n[Install]\nWantedBy=timers.target\n",
+        "[Unit]\nDescription=定时跑 git-sync\n\n[Timer]\nOnBootSec=2min\nOnUnitActiveSec={}s\nPersistent=true\n\n[Install]\nWantedBy=timers.target\n",
         cfg.schedule.interval_secs.max(60)
     );
     let svc_path = dir.join(format!("{SYSTEMD_UNIT}.service"));
@@ -348,7 +348,7 @@ pub fn install(cfg: &Config, backend: Backend) -> Result<String> {
         Backend::Systemd => systemd_install(cfg),
         Backend::Launchd => launchd_install(cfg),
         Backend::None => {
-            bail!("schedule.backend = none，不装调度器；用 `vault-sync daemon` 常驻跑")
+            bail!("schedule.backend = none，不装调度器；用 `git-sync daemon` 常驻跑")
         }
     }
 }

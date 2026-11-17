@@ -1,7 +1,7 @@
 //! 配置：一份 TOML 描述「同步哪、推到哪、什么时候推」。
 //!
-//! 查找顺序：命令行 `--config` > 环境变量 `VAULT_SYNC_CONFIG` >
-//! `~/.config/vault-sync/config.toml` > 当前目录 `./vault-sync.toml`。
+//! 查找顺序：命令行 `--config` > 环境变量 `GIT_SYNC_CONFIG` >
+//! `~/.config/git-sync/config.toml` > 当前目录 `./git-sync.toml`。
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -38,7 +38,7 @@ pub struct Fallback {
     pub enabled: bool,
 }
 
-/// 调度方式：谁来定时调用 `vault-sync run`。
+/// 调度方式：谁来定时调用 `git-sync run`。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ScheduleBackend {
@@ -47,7 +47,7 @@ pub enum ScheduleBackend {
     Cron,
     Systemd,
     Launchd,
-    /// 不装调度器，自己手动跑或用 `vault-sync daemon`。
+    /// 不装调度器，自己手动跑或用 `git-sync daemon`。
     None,
 }
 
@@ -112,8 +112,8 @@ fn default_vault_path() -> PathBuf {
 
 fn default_state_dir() -> PathBuf {
     dirs::state_dir()
-        .map(|d| d.join("vault-sync"))
-        .unwrap_or_else(|| PathBuf::from(".vault-sync"))
+        .map(|d| d.join("git-sync"))
+        .unwrap_or_else(|| PathBuf::from(".git-sync"))
 }
 
 /// 把 `~/foo` 展开成绝对路径。
@@ -136,15 +136,15 @@ impl Config {
     /// 配置文件候选路径（按优先级）。
     pub fn candidate_paths() -> Vec<PathBuf> {
         let mut paths = Vec::new();
-        if let Ok(env) = std::env::var("VAULT_SYNC_CONFIG") {
+        if let Ok(env) = std::env::var("GIT_SYNC_CONFIG") {
             if !env.is_empty() {
                 paths.push(PathBuf::from(env));
             }
         }
         if let Some(dir) = dirs::config_dir() {
-            paths.push(dir.join("vault-sync").join("config.toml"));
+            paths.push(dir.join("git-sync").join("config.toml"));
         }
-        paths.push(PathBuf::from("vault-sync.toml"));
+        paths.push(PathBuf::from("git-sync.toml"));
         paths
     }
 

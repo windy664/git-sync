@@ -56,6 +56,6 @@ jobs:
         run: cargo build --locked --release --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v4
         with:
-          name: vault-sync-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/vault-sync
+          name: git-sync-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/git-sync
           if-no-files-found: error
